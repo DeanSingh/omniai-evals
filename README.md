@@ -117,11 +117,11 @@ bundle install
 bundle exec rake        # rspec + rubocop
 ```
 
+The six contract invariants have their own spec file, `spec/omniai/evals/invariants_spec.rb`.
+
 ## Releasing
 
-Bump `VERSION` and `CHANGELOG.md`, merge, then push a `vX.Y.Z` tag on that commit. The Release workflow checks the tag matches `VERSION`, runs the suite, and pushes the gem via RubyGems trusted publishing.
-
-The six contract invariants have their own spec file, `spec/omniai/evals/invariants_spec.rb`.
+Bump `VERSION` and `CHANGELOG.md` and merge. Dean then tags that commit on main `vX.Y.Z` and pushes the tag. The Release workflow runs the suite, checks the tag matches `VERSION` and is on main, then waits for Dean to approve the `release` environment before pushing the gem via RubyGems trusted publishing.
 
 ## License
 
