@@ -1,0 +1,49 @@
+{
+  "contract": 1,
+  "example_id": "one",
+  "criteria": [
+    {
+      "id": "one#c1",
+      "family": "date",
+      "type": "presence",
+      "scorer": "assertion",
+      "target": {
+        "date": "2019-03-14"
+      },
+      "provenance": {
+        "author": "synthetic",
+        "region": "header"
+      }
+    },
+    {
+      "id": "one#c2",
+      "family": "identity",
+      "type": "identity",
+      "scorer": "assertion",
+      "target": {
+        "text": "CLAIM ABC-123"
+      },
+      "provenance": {
+        "author": "synthetic",
+        "region": "header"
+      }
+    },
+    {
+      "id": "one#c3",
+      "family": "abstention",
+      "type": "abstention",
+      "scorer": "assertion",
+      "target": {
+        "region": "line 7",
+        "forbidden_terms": [
+          "approved",
+          "denied"
+        ]
+      },
+      "provenance": {
+        "author": "synthetic",
+        "region": "line 7"
+      }
+    }
+  ]
+}

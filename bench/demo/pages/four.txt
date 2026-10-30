@@ -1,0 +1,10 @@
+Patient: JANE Q.  DOB 01-02-1980
+
+| Date | Finding |
+| --- | --- |
+| 2019-03-14 | normal |
+| 14 March 2019 | normal |
+| Mar. 21, 2019 | abnormal |
+
+Disposition: Option A
+Disposition: Option B (circled)

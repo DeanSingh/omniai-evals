@@ -1,0 +1,59 @@
+{
+  "contract": 1,
+  "example_id": "four",
+  "criteria": [
+    {
+      "id": "four#c1",
+      "family": "identity",
+      "type": "identity",
+      "scorer": "assertion",
+      "target": {
+        "text": "Patient: JANE Q."
+      },
+      "provenance": {
+        "author": "synthetic",
+        "region": "header",
+        "note": "case-sensitive on purpose: a wrong-patient header must not be fixed"
+      }
+    },
+    {
+      "id": "four#c2",
+      "family": "table",
+      "type": "structure",
+      "scorer": "assertion",
+      "target": {
+        "table_rows": 3
+      },
+      "provenance": {
+        "author": "synthetic",
+        "region": "banded table"
+      }
+    },
+    {
+      "id": "four#c3",
+      "family": "structure",
+      "type": "structure",
+      "scorer": "assertion",
+      "target": {
+        "circled": "Option B"
+      },
+      "provenance": {
+        "author": "synthetic",
+        "region": "disposition"
+      }
+    },
+    {
+      "id": "four#c4",
+      "family": "date",
+      "type": "presence",
+      "scorer": "assertion",
+      "target": {
+        "date": "2019-03-21"
+      },
+      "provenance": {
+        "author": "synthetic",
+        "region": "table row 3"
+      }
+    }
+  ]
+}

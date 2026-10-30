@@ -1,0 +1,7 @@
+{ "contract": 1,
+  "name": "demo",
+  "examples": [
+    { "id": "one",
+      "input": { "kind": "text", "path": "pages/one.txt" },
+      "target": "criteria/one.json",
+      "metadata": { "tier": "easy" } } ] }

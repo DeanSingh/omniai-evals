@@ -1,0 +1,10 @@
+{ "contract": 1, "example_id": "demo/p1",
+  "criteria": [
+    { "id": "demo/p1#c1", "family": "date", "type": "presence", "scorer": "assertion",
+      "target": { "date": "2019-03-14" },
+      "provenance": { "author": "annotator", "verified_by": "reviewer", "region": "stamp, upper right" } },
+    { "id": "demo/p1#c2", "family": "abstention", "type": "abstention", "scorer": "assertion",
+      "target": { "region": "line 7 shorthand", "forbidden_terms_present": false } },
+    { "id": "demo/p1#c3", "family": "handwriting", "type": "faithful", "scorer": "judge",
+      "target": { "key_text": "a human-authored transcription of the region" },
+      "provenance": { "author": "annotator", "region": "handwritten narrative" } } ] }

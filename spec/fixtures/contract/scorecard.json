@@ -1,0 +1,6 @@
+{ "contract": 1, "run_id": "2026-09-02T18:04:11Z-ocr-a1b2c3",
+  "comparability_key": "sha256:dataset|sha256:criteria|sha256:prompt",
+  "examples": { "total": 11, "all_pass": 9, "flaky": 1, "failed": 1 },
+  "families": { "date": { "criteria": 14, "pass": 13, "flaky": 1, "fail": 0 },
+                "abstention": { "criteria": 6, "pass": 4, "flaky": 0, "fail": 2 } },
+  "cost_usd": 4.62, "calls": 110 }

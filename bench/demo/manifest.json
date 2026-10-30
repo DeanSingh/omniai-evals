@@ -1,0 +1,50 @@
+{
+  "contract": 1,
+  "name": "demo",
+  "examples": [
+    {
+      "id": "one",
+      "input": {
+        "kind": "text",
+        "path": "pages/one.txt"
+      },
+      "target": "criteria/one.json",
+      "metadata": {
+        "tier": "easy"
+      }
+    },
+    {
+      "id": "two",
+      "input": {
+        "kind": "text",
+        "path": "pages/two.txt"
+      },
+      "target": "criteria/two.json",
+      "metadata": {
+        "tier": "easy"
+      }
+    },
+    {
+      "id": "three",
+      "input": {
+        "kind": "text",
+        "path": "pages/three.txt"
+      },
+      "target": "criteria/three.json",
+      "metadata": {
+        "tier": "easy"
+      }
+    },
+    {
+      "id": "four",
+      "input": {
+        "kind": "text",
+        "path": "pages/four.txt"
+      },
+      "target": "criteria/four.json",
+      "metadata": {
+        "tier": "hard"
+      }
+    }
+  ]
+}

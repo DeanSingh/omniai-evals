@@ -1,0 +1,8 @@
+{ "contract": 1, "example_id": "one",
+  "criteria": [
+    { "id": "one#c1", "family": "date", "type": "presence", "scorer": "assertion",
+      "target": { "date": "2019-03-14" },
+      "provenance": { "author": "annotator", "region": "header" } },
+    { "id": "one#c2", "family": "signature", "type": "presence", "scorer": "assertion",
+      "target": { "text": "signed by the examiner" },
+      "provenance": { "author": "annotator", "region": "footer" } } ] }

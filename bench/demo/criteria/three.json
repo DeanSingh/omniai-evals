@@ -1,0 +1,8 @@
+{ "contract": 1, "example_id": "three",
+  "criteria": [
+    { "id": "three#c1", "family": "date", "type": "presence", "scorer": "assertion",
+      "target": { "date": "2019-04-02" },
+      "provenance": { "author": "synthetic", "region": "header" } },
+    { "id": "three#c2", "family": "identity", "type": "presence", "scorer": "assertion",
+      "target": { "text": "CLAIM ABC-125" },
+      "provenance": { "author": "synthetic", "region": "header" } } ] }

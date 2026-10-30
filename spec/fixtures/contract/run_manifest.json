@@ -1,0 +1,12 @@
+{ "contract": 1, "run_id": "2026-09-02T18:04:11Z-ocr-a1b2c3", "tool": "run_bench",
+  "argv_sanitized": ["--plan"],
+  "toolkit_sha": "1a2b3c4d", "ruby_version": "3.3.3", "ts": "2026-09-02T18:04:11Z",
+  "dataset": { "name": "ocr_vision_eval", "sha256": "abc" },
+  "criteria": { "sha256": "def" },
+  "target": { "name": "ExampleService", "prompt_version": "sha256:aaa", "commit": "1a2b3c4d" },
+  "model": { "provider": "google", "id": "gemini-3.7-flash", "endpoint": "us-central1" },
+  "params": { "thinking": "default", "temperature": null }, "seed": "none",
+  "epochs": 5, "reducer": "all_epochs",
+  "gems": { "omniai": "3.8.0", "omniai-google": "3.14.0", "omniai-evals": "0.1.0" },
+  "judge": { "adapter": "claude_cli", "model": "sonnet", "prompt_sha256": "bbb", "billing": "subscription" },
+  "comparability_key": "sha256:dataset|sha256:criteria|sha256:prompt" }

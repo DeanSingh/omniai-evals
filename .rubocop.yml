@@ -1,0 +1,34 @@
+inherit_gem:
+  rubocop-basic: rubocop.yml
+
+plugins:
+  - rubocop-rake
+  - rubocop-rspec
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/SpecFilePathFormat:
+  CustomTransform:
+    OmniAI: omniai
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+Metrics/ParameterLists:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+# Every assertion takes the contract's `(example:, output:, criterion:)` signature
+# (docs/contract.md 4.1) whether or not it reads all three. Renaming an unused one to
+# `_example` would change the keyword and break the interface.
+Lint/UnusedMethodArgument:
+  AllowUnusedKeywordArguments: true

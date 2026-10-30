@@ -1,0 +1,8 @@
+{ "contract": 1, "example_id": "two",
+  "criteria": [
+    { "id": "two#c1", "family": "date", "type": "presence", "scorer": "assertion",
+      "target": { "date": "2019-03-21" },
+      "provenance": { "author": "synthetic", "region": "header" } },
+    { "id": "two#c2", "family": "absence", "type": "absence", "scorer": "assertion",
+      "target": { "text": "DO NOT COPY" },
+      "provenance": { "author": "synthetic", "region": "whole page" } } ] }

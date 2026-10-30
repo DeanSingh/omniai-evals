@@ -1,0 +1,7 @@
+{ "contract": 1,
+  "name": "ocr_vision_eval",
+  "examples": [
+    { "id": "demo/p1",
+      "input": { "kind": "image", "path": "pages/demo_p1.png", "dpi": 150 },
+      "target": "criteria/demo_p1.json",
+      "metadata": { "tier": "hard", "class": "handwriting,stamp,date" } } ] }
