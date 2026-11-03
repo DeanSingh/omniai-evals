@@ -60,28 +60,28 @@ RSpec.describe OmniAI::Evals::Adapters::ClaudeCLI do
 
   describe "output parsing" do
     it "parses an unfenced json result" do
-      expect(adapter.send(:parse_output, JSON.generate({ "result" => %({"passed":true}) })))
+      expect(described_class::Verdict.parse_output(JSON.generate({ "result" => %({"passed":true}) })))
         .to eq({ "passed" => true })
     end
 
     it "unwraps a fenced json result" do
       envelope = JSON.generate({ "result" => %(```json\n{"passed":true}\n```) })
-      expect(adapter.send(:parse_output, envelope)).to eq({ "passed" => true })
+      expect(described_class::Verdict.parse_output(envelope)).to eq({ "passed" => true })
     end
 
     it "recovers json wrapped in prose" do
       envelope = JSON.generate({ "result" => %(Here is my verdict:\n{"passed":false}\nThanks.) })
-      expect(adapter.send(:parse_output, envelope)).to eq({ "passed" => false })
+      expect(described_class::Verdict.parse_output(envelope)).to eq({ "passed" => false })
     end
 
     it "raises on an error envelope" do
-      expect { adapter.send(:parse_output, JSON.generate({ "is_error" => true, "result" => "x" })) }
+      expect { described_class::Verdict.parse_output(JSON.generate({ "is_error" => true, "result" => "x" })) }
         .to raise_error(described_class::JudgeError, /reported an error/)
     end
 
     it "omits the raw content from an unparseable error, because it can carry PHI" do
       envelope = JSON.generate({ "result" => "the claimant Jane said no json here" })
-      expect { adapter.send(:parse_output, envelope) }
+      expect { described_class::Verdict.parse_output(envelope) }
         .to raise_error(described_class::JudgeError) { |error|
               expect(error.message).to match(/\d+ bytes/)
               expect(error.message).not_to include("Jane")
@@ -90,7 +90,7 @@ RSpec.describe OmniAI::Evals::Adapters::ClaudeCLI do
 
     it "raises a PHI-free error when a brace span is still invalid json" do
       envelope = JSON.generate({ "result" => "Jane said {this is not json} today" })
-      expect { adapter.send(:parse_output, envelope) }
+      expect { described_class::Verdict.parse_output(envelope) }
         .to raise_error(described_class::JudgeError) { |error|
               expect(error.message).not_to include("Jane")
             }
@@ -98,16 +98,16 @@ RSpec.describe OmniAI::Evals::Adapters::ClaudeCLI do
 
     it "returns the structured_output object under a schema" do
       envelope = JSON.generate({ "structured_output" => { "passed" => true }, "result" => "prose" })
-      expect(adapter.send(:parse_structured, envelope)).to eq({ "passed" => true })
+      expect(described_class::Verdict.parse_structured(envelope)).to eq({ "passed" => true })
     end
 
     it "raises when structured_output is absent, rather than returning nil silently" do
-      expect { adapter.send(:parse_structured, JSON.generate({ "result" => "prose only" })) }
+      expect { described_class::Verdict.parse_structured(JSON.generate({ "result" => "prose only" })) }
         .to raise_error(described_class::JudgeError, /no structured_output/)
     end
 
     it "raises on an unparseable envelope" do
-      expect { adapter.send(:parse_structured, "not json at all") }
+      expect { described_class::Verdict.parse_structured("not json at all") }
         .to raise_error(described_class::JudgeError, /unparseable/)
     end
   end

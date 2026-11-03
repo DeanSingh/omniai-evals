@@ -22,6 +22,7 @@ module OmniAI
         # envelope's subtype is still recorded) and returns that stdout. Its errors are kept for the
         # caller to raise; only what isn't a StandardError, like an Interrupt, goes straight up.
         #
+        # @api private
         # @return [Hash] the last process: :stdout, and :result or :error
         def self.capture(calls, timeout_error:, rate_limit:, &process)
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -43,6 +44,8 @@ module OmniAI
 
         # One process: what it printed, and how it failed. The stdout is parsed only for stop codes,
         # numbers and the rate limit.
+        #
+        # @api private
         def self.attempt(timeout_error)
           stdout = nil
           result = yield(->(out) { stdout = out })
