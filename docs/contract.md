@@ -217,3 +217,13 @@ so `"contract": 1` still holds. Fold them into the contract proper when it is ne
 - **Both judge adapters take `call(system:, packet:, model:, schema:, timeout:)`** and put
   the judge prompt in a real system turn, so a runner can swap them and calibration
   measured on one transfers to the other.
+
+- **`Adapters::ClaudeCLI` retries a rate limit.** A process whose envelope has
+  `api_error_status` 429 or 529 runs again, up to 5 processes, waiting 30s doubling each try
+  plus up to 30s of jitter. Out of attempts it raises `ClaudeCLI::RateLimitSpent`, a
+  `JudgeError`, and the adapter's limit is spent: no new call starts, and calls still waiting
+  stop. The limit is the adapter instance's and stays spent, so a new run uses a new adapter.
+  `adapter.rate_limit.spent?` reads it and `adapter.rate_limit.spend!` spends it from outside.
+  The gem never exits; how the run ends is the caller's. In a `calls:` record, `attempts`
+  counts processes and `latency_ms` includes the waits, still one record per call.
+  `Adapters::OmniAI` does not retry and always records 1.

@@ -5,6 +5,8 @@ require "open3"
 
 require_relative "../../evals"
 require_relative "call_record"
+require_relative "rate_limit"
+require_relative "claude_cli/verdict"
 
 module OmniAI
   module Evals
@@ -41,6 +43,12 @@ module OmniAI
         class TimeoutError < JudgeError
         end
 
+        # A rate limit outlasted its attempts, so this adapter starts no new call. It is a JudgeError so
+        # a rescue that counts a failed call keeps the run's finished work. How the run ends is the
+        # caller's: rescue this, or read rate_limit.spent?, to stop and resume later.
+        class RateLimitSpent < JudgeError
+        end
+
         # The child's environment is built FROM SCRATCH, never inherited. ANTHROPIC_API_KEY is
         # exported machine-wide on the operator's box, and a bare Open3.popen3(*args) hands it
         # to `claude -p`, where it takes auth precedence over the claude.ai login -- so runs
@@ -74,6 +82,7 @@ module OmniAI
           SSL_CERT_FILE NODE_EXTRA_CA_CERTS HTTP_PROXY HTTPS_PROXY NO_PROXY
         ].freeze
         BILLING_MODES = %i[subscription api].freeze
+        RATE_LIMIT_SPENT = "rate limit spent, no new call started"
 
         # A page legitimately takes minutes (the model re-transcribes it), so the default
         # deadline is generous; a caller's timeout: overrides it. Its job is only to cap a
@@ -88,7 +97,7 @@ module OmniAI
         ISOLATION_FLAGS = ["--tools", "", "--strict-mcp-config", "--no-session-persistence",
                            "--setting-sources", "",].freeze
 
-        attr_reader :billing
+        attr_reader :billing, :rate_limit
 
         # Billing is a RUN-level choice, so it is bound once at construction and the bound
         # adapter is handed to the existing injection points -- no `billing:` parameter has
@@ -101,11 +110,15 @@ module OmniAI
         #   there is no default, so a caller cannot fall into metered billing by omission.
         def initialize(billing:)
           @billing = billing
+          @rate_limit = RateLimit.new
           child_env # validates the mode (and, for :api, the key) up front
           freeze
         end
 
-        # Runs one `claude -p` judge under the billing mode bound at construction.
+        # Runs one `claude -p` judge under the billing mode bound at construction. A process that comes
+        # back rate limited is waited out and run again (see RateLimit). Only this method retries:
+        # run_with_timeout runs one process, so a subclass calling it directly keeps its own policy.
+        # A spent adapter stays spent, so a new run uses a new adapter.
         #
         # @param system [String] the judge's system prompt -- static and PHI-free.
         # @param packet [String] the PHI-bearing user content; sent on STDIN only.
@@ -120,6 +133,7 @@ module OmniAI
         # @param calls [#<<, nil] an optional collector. Each call that reaches the subprocess
         #   pushes exactly one CallRecord however it ends, before any error is raised.
         # @return [Hash] the parsed verdict.
+        # @raise [RateLimitSpent] when the limit is spent, this call's or an earlier one's.
         # @raise [JudgeError] when the claude call errors or returns unparseable output.
         def call(system:, packet:, model: nil, schema: nil, timeout: JUDGE_TIMEOUT, calls: nil)
           # model stays effectively required -- there is no sensible default for a judge
@@ -133,11 +147,15 @@ module OmniAI
           args = ["claude", "-p", "--system-prompt", system, *ISOLATION_FLAGS, "--model", model,
                   "--output-format", "json",]
           args += ["--json-schema", JSON.generate(schema)] if schema
-          stdout = CallRecord.capture(calls, timeout_error: TimeoutError) do |on_stdout|
+          raise RateLimitSpent, RATE_LIMIT_SPENT if @rate_limit.spent?
+
+          run = CallRecord.capture(calls, timeout_error: TimeoutError, rate_limit: @rate_limit) do |on_stdout|
             run_with_timeout(args, packet, timeout:, env: child_env, on_stdout:)
           end
+          raise RateLimitSpent, RATE_LIMIT_SPENT if RateLimit.limited?(run[:stdout])
+          raise run[:error] if run[:error]
 
-          schema ? parse_structured(stdout) : parse_output(stdout)
+          schema ? Verdict.parse_structured(run[:result]) : Verdict.parse_output(run[:result])
         end
 
         # The child environment for the bound billing mode -- built from the allowlist, so no
@@ -210,59 +228,6 @@ module OmniAI
           wait_thr.join(1)
         rescue Errno::ESRCH
           # already exited between the timeout check and the signal
-        end
-
-        # Parses the `claude -p --output-format json` envelope ({ is_error, result })
-        # and returns the verdict Hash carried in `result`. The error message never
-        # includes the raw output -- it holds PHI (verbatim source quotes).
-        def parse_output(stdout)
-          envelope = JSON.parse(stdout)
-          raise JudgeError, "claude reported an error result" if envelope["is_error"]
-
-          parse_verdict(envelope.fetch("result", "").to_s)
-        rescue JSON::ParserError
-          raise JudgeError, "unparseable judge output (#{stdout.bytesize} bytes)"
-        end
-
-        # The judge is told to emit bare JSON, but LLM output is nondeterministic -- the
-        # same input can come back ```-fenced one run and wrapped in prose the next.
-        # Strip fences first; if that still isn't valid JSON, fall back to the outermost
-        # { ... } span. Raises (PHI-free) only when no JSON object is recoverable.
-        def parse_verdict(result)
-          cleaned = result.strip.gsub(/\A```(?:json)?\s*/m, "").gsub(/\s*```\z/m, "").strip
-          JSON.parse(cleaned)
-        rescue JSON::ParserError
-          span = cleaned[/\{.*\}/m]
-          raise JudgeError, "unparseable judge output (#{result.bytesize} bytes)" if span.nil?
-
-          # A non-nil span can still be invalid JSON (e.g. prose braces). Rescue here too
-          # so it surfaces as a PHI-free JudgeError, never a raw JSON::ParserError leaking
-          # the (possibly PHI-bearing) content.
-          begin
-            JSON.parse(span)
-          rescue JSON::ParserError
-            raise JudgeError, "unparseable judge output (#{result.bytesize} bytes)"
-          end
-        end
-
-        # Reads the schema-constrained object from a `claude -p --json-schema` envelope's
-        # `structured_output` field (constrained decoding populates it). The free-form
-        # `result` still holds the model's prose transcription -- its chain-of-thought --
-        # but the deterministic artifact is `structured_output`. An absent field means the
-        # model transcribed but never emitted the constrained object (refusal / max_tokens):
-        # a COUNTED JudgeError, never a silent nil. Error messages stay PHI-free (byte counts
-        # only) -- the envelope can echo verbatim source quotes.
-        def parse_structured(stdout)
-          envelope = JSON.parse(stdout)
-          raise JudgeError, "claude reported an error result" if envelope["is_error"]
-
-          verdict = envelope["structured_output"]
-          raise JudgeError, "no structured_output in judge response (#{stdout.bytesize} bytes)" unless
-            verdict.is_a?(Hash)
-
-          verdict
-        rescue JSON::ParserError
-          raise JudgeError, "unparseable judge output (#{stdout.bytesize} bytes)"
         end
       end
     end
