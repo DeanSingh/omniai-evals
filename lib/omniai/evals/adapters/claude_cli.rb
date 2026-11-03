@@ -5,6 +5,7 @@ require "open3"
 
 require_relative "../../evals"
 require_relative "call_record"
+require_relative "rate_limit"
 
 module OmniAI
   module Evals
@@ -31,7 +32,7 @@ module OmniAI
       # construction (the old Judge.bound), so it satisfies the contract's
       # `call(system:, packet:, model:, schema:, timeout:)` adapter interface; and it
       # runs isolated, replacing the Claude Code system prompt rather than appending to it.
-      class ClaudeCLI
+      class ClaudeCLI # rubocop:disable Metrics/ClassLength
         class JudgeError < OmniAI::Evals::Error
         end
 
@@ -39,6 +40,12 @@ module OmniAI
         # the summary can count timeouts on their own line (it is still a JudgeError, so
         # existing rescues keep treating it as a failed call).
         class TimeoutError < JudgeError
+        end
+
+        # A rate limit outlasted its attempts, so this adapter starts no new call. It is a JudgeError so
+        # a rescue that counts a failed call keeps the run's finished work. How the run ends is the
+        # caller's: rescue this, or read rate_limit.spent?, to stop and resume later.
+        class RateLimitSpent < JudgeError
         end
 
         # The child's environment is built FROM SCRATCH, never inherited. ANTHROPIC_API_KEY is
@@ -74,6 +81,7 @@ module OmniAI
           SSL_CERT_FILE NODE_EXTRA_CA_CERTS HTTP_PROXY HTTPS_PROXY NO_PROXY
         ].freeze
         BILLING_MODES = %i[subscription api].freeze
+        RATE_LIMIT_SPENT = "rate limit spent, no new call started"
 
         # A page legitimately takes minutes (the model re-transcribes it), so the default
         # deadline is generous; a caller's timeout: overrides it. Its job is only to cap a
@@ -88,7 +96,7 @@ module OmniAI
         ISOLATION_FLAGS = ["--tools", "", "--strict-mcp-config", "--no-session-persistence",
                            "--setting-sources", "",].freeze
 
-        attr_reader :billing
+        attr_reader :billing, :rate_limit
 
         # Billing is a RUN-level choice, so it is bound once at construction and the bound
         # adapter is handed to the existing injection points -- no `billing:` parameter has
@@ -101,11 +109,14 @@ module OmniAI
         #   there is no default, so a caller cannot fall into metered billing by omission.
         def initialize(billing:)
           @billing = billing
+          @rate_limit = RateLimit.new
           child_env # validates the mode (and, for :api, the key) up front
           freeze
         end
 
-        # Runs one `claude -p` judge under the billing mode bound at construction.
+        # Runs one `claude -p` judge under the billing mode bound at construction. A process that comes
+        # back rate limited is waited out and run again (see RateLimit). Only this method retries:
+        # run_with_timeout runs one process, so a subclass calling it directly keeps its own policy.
         #
         # @param system [String] the judge's system prompt -- static and PHI-free.
         # @param packet [String] the PHI-bearing user content; sent on STDIN only.
@@ -120,6 +131,7 @@ module OmniAI
         # @param calls [#<<, nil] an optional collector. Each call that reaches the subprocess
         #   pushes exactly one CallRecord however it ends, before any error is raised.
         # @return [Hash] the parsed verdict.
+        # @raise [RateLimitSpent] when the limit is spent, this call's or an earlier one's.
         # @raise [JudgeError] when the claude call errors or returns unparseable output.
         def call(system:, packet:, model: nil, schema: nil, timeout: JUDGE_TIMEOUT, calls: nil)
           # model stays effectively required -- there is no sensible default for a judge
@@ -133,11 +145,15 @@ module OmniAI
           args = ["claude", "-p", "--system-prompt", system, *ISOLATION_FLAGS, "--model", model,
                   "--output-format", "json",]
           args += ["--json-schema", JSON.generate(schema)] if schema
-          stdout = CallRecord.capture(calls, timeout_error: TimeoutError) do |on_stdout|
+          raise RateLimitSpent, RATE_LIMIT_SPENT if @rate_limit.spent?
+
+          run = CallRecord.capture(calls, timeout_error: TimeoutError, rate_limit: @rate_limit) do |on_stdout|
             run_with_timeout(args, packet, timeout:, env: child_env, on_stdout:)
           end
+          raise RateLimitSpent, RATE_LIMIT_SPENT if RateLimit.limited?(run[:stdout])
+          raise run[:error] if run[:error]
 
-          schema ? parse_structured(stdout) : parse_output(stdout)
+          schema ? parse_structured(run[:result]) : parse_output(run[:result])
         end
 
         # The child environment for the bound billing mode -- built from the allowlist, so no
